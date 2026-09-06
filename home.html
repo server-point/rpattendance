@@ -4,6 +4,11 @@
 <meta charset="UTF-8" />
 <title>RetailPoint Attendance</title>
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+<!-- PWA / TWA requirements: manifest + theme color -->
+<link rel="manifest" href="/manifest.json" />
+<meta name="theme-color" content="#142B3D" />
+<link rel="icon" href="https://res.cloudinary.com/qgu6ln2v/image/upload/v1788607141/logo_padrto.png" />
+<link rel="apple-touch-icon" href="https://res.cloudinary.com/qgu6ln2v/image/upload/v1788607141/logo_padrto.png" />
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -912,6 +917,18 @@
       call('setLocationEnforced', { token: state.token, locationId: id, enforced: makeEnforced }).then(function(){ loadAdminData(); });
     }
   };
+
+  // ============================== PWA / TWA SUPPORT ==============================
+  // Registers the service worker so this site qualifies as an installable PWA
+  // for PWABuilder / Trusted Web Activity packaging into an Android app.
+  if ('serviceWorker' in navigator){
+    window.addEventListener('load', function(){
+      navigator.serviceWorker.register('/service-worker.js').catch(function(){
+        // Non-fatal if this fails (e.g. unsupported host) — the web app
+        // itself still works fine without it.
+      });
+    });
+  }
 })();
 </script>
 </body>
