@@ -1,4 +1,5 @@
 {
+  "id": "/rpattendance/",
   "name": "RetailPoint Attendance",
   "short_name": "RetailPoint",
   "description": "Self-capture, real-time, geofenced staff attendance for RetailPoint.",
@@ -8,18 +9,25 @@
   "orientation": "portrait",
   "background_color": "#F7F6F2",
   "theme_color": "#142B3D",
+  "categories": ["business", "productivity"],
   "icons": [
     {
-      "src": "https://res.cloudinary.com/qgu6ln2v/image/upload/v1788607141/logo_padrto.png",
+      "src": "https://res.cloudinary.com/qgu6ln2v/image/upload/w_192,h_192,c_pad,b_white/v1788607141/logo_padrto.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "https://res.cloudinary.com/qgu6ln2v/image/upload/v1788607141/logo_padrto.png",
+      "src": "https://res.cloudinary.com/qgu6ln2v/image/upload/w_512,h_512,c_pad,b_white/v1788607141/logo_padrto.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
+    },
+    {
+      "src": "https://res.cloudinary.com/qgu6ln2v/image/upload/w_512,h_512,c_pad,b_white/v1788607141/logo_padrto.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ]
 }
