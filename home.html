@@ -1,0 +1,918 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>RetailPoint Attendance</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<style>
+  :root{
+    --ink:#142B3D;
+    --ink-2:#1D3B52;
+    --teal:#1F8A70;
+    --teal-light:#E4F3EF;
+    --amber:#E0902F;
+    --amber-light:#FBEEDE;
+    --penalty:#B23A2E;
+    --penalty-light:#F8E7E5;
+    --reward:#B8860B;
+    --reward-light:#FBF1DA;
+    --canvas:#F7F6F2;
+    --surface:#FFFFFF;
+    --text:#1B1F23;
+    --text-muted:#5B6672;
+    --border:#E4E2DA;
+    --radius-s:8px;
+    --radius-m:14px;
+    --radius-l:22px;
+    --shadow-hero: 0 20px 40px -18px rgba(20,43,61,0.35);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--canvas);
+    color:var(--text);
+    font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;
+    -webkit-font-smoothing:antialiased;
+    min-height:100vh;
+  }
+  h1,h2,h3,.brand,.dial-time{font-family:'Space Grotesk',sans-serif;}
+  button{font-family:inherit;cursor:pointer;}
+  input,select{font-family:inherit;}
+  :focus-visible{outline:2px solid var(--teal);outline-offset:2px;}
+  @media (prefers-reduced-motion: reduce){*{animation:none !important;transition:none !important;}}
+
+  #app{min-height:100vh;display:flex;flex-direction:column;}
+  .topbar{display:flex;align-items:center;justify-content:space-between;padding:14px 20px;background:var(--ink);color:#fff;}
+  .brand{font-size:18px;font-weight:700;letter-spacing:0.2px;display:flex;align-items:center;gap:10px;}
+  .brand-mark{width:28px;height:28px;border-radius:8px;background:linear-gradient(135deg,var(--teal),var(--ink-2));display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;}
+  .topbar .brand-mark{width:32px;height:32px;background:transparent;}
+  .topbar .brand-mark img{width:100%;height:100%;object-fit:contain;}
+  .topbar-right{display:flex;align-items:center;gap:14px;font-size:14px;color:#CBD6DE;}
+  .btn-ghost{background:transparent;border:1px solid rgba(255,255,255,0.25);color:#fff;padding:7px 14px;border-radius:var(--radius-s);font-size:13px;}
+  .btn-ghost:hover{background:rgba(255,255,255,0.08);}
+
+  main{flex:1;width:100%;max-width:1080px;margin:0 auto;padding:22px 16px 60px;}
+
+  .login-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;background:
+    radial-gradient(circle at 15% 20%, rgba(31,138,112,0.16), transparent 45%),
+    radial-gradient(circle at 85% 80%, rgba(20,43,61,0.14), transparent 45%),
+    var(--canvas);
+    padding:20px;}
+  .login-card{
+    background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-l);
+    padding:36px 30px;width:100%;max-width:380px;box-shadow:var(--shadow-hero);
+    display:flex;flex-direction:column;align-items:center;text-align:center;
+  }
+  .login-card .brand-mark{width:80px;height:70px;border-radius:12px;font-size:18px;margin-bottom:16px;background:transparent;}
+  .login-card h1{font-size:22px;margin:0 0 4px;}
+  .login-card p.sub{color:var(--text-muted);margin:0 0 24px;font-size:14px;}
+  .brand-mark img{max-width:100%;height:auto;display:block;margin:0 auto;}
+
+  .field{margin-bottom:14px;width:100%;text-align:left;}
+  .field label{display:block;font-size:13px;font-weight:600;margin-bottom:6px;color:var(--ink);}
+  .field input{width:100%;padding:11px 13px;border:1px solid var(--border);border-radius:var(--radius-s);font-size:15px;background:#FBFAF8;}
+  .field input:focus{background:#fff;border-color:var(--teal);}
+  .btn-primary{width:100%;background:var(--ink);color:#fff;border:none;padding:12px;border-radius:var(--radius-s);font-size:15px;font-weight:600;margin-top:6px;transition:background .15s;}
+  .btn-primary:hover{background:var(--ink-2);}
+  .btn-primary:disabled{opacity:0.6;cursor:default;}
+  .login-error{background:var(--penalty-light);color:var(--penalty);padding:9px 12px;border-radius:var(--radius-s);font-size:13px;margin-bottom:14px;display:none;width:100%;}
+  #loginForm{width:100%;}
+  .config-warning{background:var(--amber-light);color:#7A4E10;padding:10px 12px;border-radius:var(--radius-s);font-size:12.5px;margin-bottom:16px;display:none;width:100%;text-align:left;}
+
+  .hero{display:flex;flex-direction:column;align-items:center;padding:34px 20px 26px;}
+  .dial{
+    width:220px;height:220px;border-radius:50%;position:relative;
+    display:flex;align-items:center;justify-content:center;flex-direction:column;
+    background:var(--surface);box-shadow:var(--shadow-hero);
+    border:8px solid var(--border);transition:border-color .3s;
+  }
+  .dial.status-in{border-color:var(--teal);}
+  .dial.status-late{border-color:var(--amber);}
+  .dial-time{font-size:30px;font-weight:700;color:var(--ink);letter-spacing:0.5px;}
+  .dial-date{font-size:12px;color:var(--text-muted);margin-top:2px;}
+  .dial-status{margin-top:10px;font-size:12px;font-weight:700;padding:4px 12px;border-radius:20px;background:var(--canvas);color:var(--text-muted);}
+  .dial-status.in{background:var(--teal-light);color:var(--teal);}
+  .dial-status.late{background:var(--amber-light);color:var(--amber);}
+  .clock-btn{
+    margin-top:22px;padding:15px 40px;border-radius:30px;border:none;
+    font-size:16px;font-weight:700;color:#fff;background:var(--teal);
+    box-shadow:0 10px 24px -10px rgba(31,138,112,0.55);
+  }
+  .clock-btn.out{background:var(--ink);box-shadow:0 10px 24px -10px rgba(20,43,61,0.55);}
+  .clock-btn:disabled{background:#B9BEC4;box-shadow:none;}
+  .hero-hint{margin-top:10px;font-size:12.5px;color:var(--text-muted);text-align:center;max-width:280px;}
+
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin-top:8px;}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-m);padding:16px 18px;}
+  .card h3{font-size:13px;text-transform:none;color:var(--text-muted);margin:0 0 6px;font-weight:600;}
+  .card .big{font-size:24px;font-weight:700;color:var(--ink);font-family:'Space Grotesk',sans-serif;}
+  .card .tag{display:inline-block;margin-top:6px;font-size:11.5px;padding:2px 9px;border-radius:12px;}
+  .tag.penalty{background:var(--penalty-light);color:var(--penalty);}
+  .tag.reward{background:var(--reward-light);color:var(--reward);}
+  .tag.ontime{background:var(--teal-light);color:var(--teal);}
+
+  section.block{margin-top:30px;}
+  section.block h2{font-size:16px;margin:0 0 12px;color:var(--ink);}
+
+  .history-row{display:flex;align-items:center;justify-content:space-between;padding:12px 4px;border-bottom:1px solid var(--border);font-size:13.5px;gap:10px;flex-wrap:wrap;}
+  .history-row:last-child{border-bottom:none;}
+  .history-left{display:flex;flex-direction:column;gap:2px;}
+  .history-date{font-weight:600;color:var(--ink);}
+  .history-meta{color:var(--text-muted);font-size:12px;}
+  .badge{font-size:11px;font-weight:700;padding:3px 10px;border-radius:14px;}
+  .badge.late{background:var(--amber-light);color:var(--amber);}
+  .badge.ontime{background:var(--teal-light);color:var(--teal);}
+  .badge.penalty{background:var(--penalty-light);color:var(--penalty);}
+  .badge.reward{background:var(--reward-light);color:var(--reward);}
+
+  #map{height:220px;border-radius:var(--radius-m);margin-top:10px;border:1px solid var(--border);}
+
+  .overlay{position:fixed;inset:0;background:rgba(10,16,22,0.82);display:flex;align-items:center;justify-content:center;z-index:50;padding:16px;}
+  .cam-card{background:var(--ink);border-radius:var(--radius-l);padding:20px;width:100%;max-width:420px;color:#fff;}
+  .cam-card h3{margin:0 0 4px;font-size:16px;}
+  .cam-card p.step{color:#B7C4CE;font-size:13px;margin:0 0 14px;}
+  .cam-video-wrap{position:relative;border-radius:var(--radius-m);overflow:hidden;background:#000;aspect-ratio:3/4;}
+  .cam-video-wrap video, .cam-video-wrap img{width:100%;height:100%;object-fit:cover;display:block;}
+  .cam-actions{display:flex;gap:10px;margin-top:14px;}
+  .cam-actions button{flex:1;padding:12px;border-radius:var(--radius-s);border:none;font-weight:700;font-size:14px;}
+  .btn-capture{background:#fff;color:var(--ink);}
+  .btn-cancel{background:transparent;border:1px solid rgba(255,255,255,0.3) !important;color:#fff;}
+  .btn-confirm{background:var(--teal);color:#fff;}
+  .btn-retake{background:transparent;border:1px solid rgba(255,255,255,0.3) !important;color:#fff;}
+  .cam-status{margin-top:12px;font-size:12.5px;color:#B7C4CE;display:flex;align-items:center;gap:8px;}
+  .spinner{width:14px;height:14px;border-radius:50%;border:2px solid rgba(255,255,255,0.3);border-top-color:#fff;animation:spin .8s linear infinite;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+
+  #toast-stack{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;gap:8px;z-index:80;width:calc(100% - 32px);max-width:380px;}
+  .toast{background:var(--ink);color:#fff;padding:12px 16px;border-radius:var(--radius-s);font-size:13.5px;box-shadow:0 12px 24px -12px rgba(0,0,0,0.5);opacity:0;transform:translateY(8px);transition:all .25s;}
+  .toast.show{opacity:1;transform:translateY(0);}
+  .toast.success{background:var(--teal);}
+  .toast.error{background:var(--penalty);}
+  .toast.warn{background:var(--amber);color:#3A2A0E;}
+
+  .tabs{display:flex;gap:6px;margin-bottom:18px;border-bottom:1px solid var(--border);}
+  .tab{padding:10px 14px;font-size:13.5px;font-weight:600;color:var(--text-muted);border:none;background:none;border-bottom:2px solid transparent;}
+  .tab.active{color:var(--ink);border-bottom-color:var(--teal);}
+
+  table{width:100%;border-collapse:collapse;font-size:13px;}
+  th,td{padding:9px 8px;text-align:left;border-bottom:1px solid var(--border);white-space:nowrap;}
+  th{color:var(--text-muted);font-weight:600;font-size:11.5px;text-transform:uppercase;letter-spacing:0.03em;}
+  .table-wrap{overflow-x:auto;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-m);padding:6px 14px;}
+  .thumb{width:34px;height:34px;border-radius:8px;object-fit:cover;background:var(--canvas);}
+
+  .filters{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:14px;}
+  .filters input, .filters select{padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius-s);font-size:13px;background:#fff;}
+  .btn-small{padding:8px 14px;border-radius:var(--radius-s);border:1px solid var(--border);background:#fff;font-size:13px;font-weight:600;color:var(--ink);}
+  .btn-small.primary{background:var(--ink);color:#fff;border-color:var(--ink);}
+
+  .form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:12px;}
+  .form-grid input, .form-grid select{padding:9px 11px;border:1px solid var(--border);border-radius:var(--radius-s);font-size:13.5px;}
+
+  .empty-state{text-align:center;padding:30px 10px;color:var(--text-muted);font-size:13.5px;}
+  .hidden{display:none !important;}
+</style>
+</head>
+<body>
+
+<div id="toast-stack"></div>
+
+<!-- ============================= LOGIN VIEW ============================= -->
+<div id="loginView" class="login-wrap">
+  <div class="login-card">
+    <div class="brand-mark">
+       <img src="https://res.cloudinary.com/qgu6ln2v/image/upload/v1788607141/logo_padrto.png" alt="RetailPoint Logo">
+    </div>
+    <h1>RetailPoint Attendance</h1>
+    <p class="sub">Sign in with your Employee ID and PIN to clock in.</p>
+    <div class="config-warning" id="configWarning">
+      ⚠️ APPS_SCRIPT_URL is not set yet. Open this file's &lt;script&gt; section and paste your deployed
+      Apps Script Web App URL (ending in /exec) into the APPS_SCRIPT_URL constant near the top.
+    </div>
+    <div class="login-error" id="loginError"></div>
+    <form id="loginForm">
+      <div class="field">
+        <label for="employeeId">Employee ID</label>
+        <input id="employeeId" autocomplete="username" required />
+      </div>
+      <div class="field">
+        <label for="pin">PIN</label>
+        <input id="pin" type="password" inputmode="numeric" autocomplete="current-password" required />
+      </div>
+      <button class="btn-primary" type="submit" id="loginBtn">Sign in</button>
+    </form>
+  </div>
+</div>
+
+<!-- ============================= APP SHELL ============================= -->
+<div id="app" class="hidden">
+  <div class="topbar">
+    <div class="brand-mark">
+       <img src="https://res.cloudinary.com/qgu6ln2v/image/upload/v1788607141/logo_padrto.png" alt="RetailPoint Logo">
+    </div>
+    <div class="topbar-right">
+      <span id="topGreeting"></span>
+      <button class="btn-ghost" id="logoutBtn">Sign out</button>
+    </div>
+  </div>
+
+  <main>
+    <div class="tabs hidden" id="adminTabs">
+      <button class="tab active" data-tab="myShift">My shift</button>
+      <button class="tab" data-tab="admin">Admin dashboard</button>
+    </div>
+
+    <!-- ---------------- EMPLOYEE: MY SHIFT ---------------- -->
+    <div id="myShiftPanel">
+      <div class="hero">
+        <div class="dial" id="dial">
+          <div class="dial-time" id="dialTime">--:--</div>
+          <div class="dial-date" id="dialDate"></div>
+          <div class="dial-status" id="dialStatus">Not clocked in</div>
+        </div>
+        <button class="clock-btn" id="clockBtn">Clock in</button>
+        <div class="hero-hint" id="heroHint">You can clock in any time. Mon–Fri after 9:04am counts as late (₦1,000 deduction). Saturday work earns a ₦3,000 reward.</div>
+      </div>
+
+      <div class="grid">
+        <div class="card"><h3>Today</h3><div class="big" id="todayTimeCard">—</div><span class="tag" id="todayTag"></span></div>
+        <div class="card"><h3>This period — present</h3><div class="big" id="presentCount">0</div></div>
+        <div class="card"><h3>Total hours</h3><div class="big" id="totalHours">0.0</div></div>
+        <div class="card"><h3>Net (rewards − penalties)</h3><div class="big" id="netAmount">₦0</div></div>
+      </div>
+
+      <section class="block">
+        <h2>Last known location</h2>
+        <div id="map"></div>
+      </section>
+
+      <section class="block">
+        <h2>Attendance history</h2>
+        <div id="historyList" class="card"><div class="empty-state">Loading history…</div></div>
+      </section>
+    </div>
+
+    <!-- ---------------- ADMIN DASHBOARD ---------------- -->
+    <div id="adminPanel" class="hidden">
+      <section class="block" style="margin-top:0;">
+        <div class="grid">
+          <div class="card"><h3>Late clock-ins</h3><div class="big" id="admLate">0</div></div>
+          <div class="card"><h3>Geofence flags</h3><div class="big" id="admFlags">0</div></div>
+          <div class="card"><h3>Total penalties</h3><div class="big" id="admPenalty">₦0</div></div>
+          <div class="card"><h3>Total rewards</h3><div class="big" id="admReward">₦0</div></div>
+        </div>
+      </section>
+
+      <section class="block">
+        <h2>Attendance records</h2>
+        <div class="filters">
+          <input type="date" id="fltStart" />
+          <input type="date" id="fltEnd" />
+          <select id="fltEmployee"><option value="">All employees</option></select>
+          <button class="btn-small" id="fltApply">Apply filters</button>
+          <button class="btn-small" id="exportBtn">Export CSV</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th>Photo</th><th>Employee</th><th>Date</th><th>Day</th><th>In</th><th>Out</th>
+              <th>Status</th><th>Geofence</th><th>Penalty</th><th>Reward</th><th></th>
+            </tr></thead>
+            <tbody id="admTableBody"><tr><td colspan="11" class="empty-state">Loading…</td></tr></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="block">
+        <h2>Manage employees</h2>
+        <div class="card">
+          <div class="form-grid">
+            <input id="newEmpId" placeholder="Employee ID" />
+            <input id="newEmpName" placeholder="Full name" />
+            <input id="newEmpPin" placeholder="4-digit PIN" inputmode="numeric" />
+            <input id="newEmpDept" placeholder="Department" />
+            <select id="newEmpRole"><option value="Employee">Employee</option><option value="Admin">Admin</option></select>
+          </div>
+          <button class="btn-small primary" id="addEmpBtn">Add employee</button>
+        </div>
+        <div class="table-wrap" style="margin-top:10px;">
+          <table><thead><tr><th>ID</th><th>Name</th><th>Dept</th><th>Role</th><th>Active</th><th></th></tr></thead>
+          <tbody id="empTableBody"></tbody></table>
+        </div>
+      </section>
+
+      <section class="block">
+        <h2>Manage locations</h2>
+        <div class="card">
+          <div class="form-grid">
+            <input id="newLocName" placeholder="Location name" />
+            <input id="newLocLat" placeholder="Latitude" />
+            <input id="newLocLng" placeholder="Longitude" />
+            <input id="newLocRadius" placeholder="Radius (meters)" />
+          </div>
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text-muted);margin-bottom:12px;">
+            <input type="checkbox" id="newLocEnforced" style="width:16px;height:16px;" />
+            Enforce this radius (reject clock-in outside it, instead of just flagging)
+          </label>
+          <button class="btn-small primary" id="addLocBtn">Add location</button>
+        </div>
+        <div class="table-wrap" style="margin-top:10px;">
+          <table><thead><tr><th>Name</th><th>Lat</th><th>Lng</th><th>Radius (m)</th><th>Active</th><th>Mode</th><th></th></tr></thead>
+          <tbody id="locTableBody"></tbody></table>
+        </div>
+      </section>
+    </div>
+  </main>
+</div>
+
+<!-- ============================= LIVE CAMERA MODAL ============================= -->
+<!-- This works because this page is hosted on a real top-level HTTPS domain
+     (GitHub Pages / Netlify / Firebase Hosting), NOT inside Apps Script's
+     own sandboxed iframe. getUserMedia() is blocked in that iframe by
+     design at the browser level — see the setup notes in Code.gs. -->
+<div class="overlay hidden" id="camOverlay">
+  <div class="cam-card">
+    <h3 id="camTitle">Clock in — take a selfie</h3>
+    <p class="step" id="camStep">Position your face in frame, then capture.</p>
+    <div class="cam-video-wrap">
+      <video id="camVideo" autoplay playsinline muted></video>
+      <img id="camPhoto" class="hidden" />
+    </div>
+    <canvas id="camCanvas" class="hidden"></canvas>
+    <div class="cam-actions" id="camActionsLive">
+      <button class="btn-cancel" id="camCancel">Cancel</button>
+      <button class="btn-capture" id="camCapture">Capture</button>
+    </div>
+    <div class="cam-actions hidden" id="camActionsReview">
+      <button class="btn-retake" id="camRetake">Retake</button>
+      <button class="btn-confirm" id="camConfirm">Confirm &amp; submit</button>
+    </div>
+    <div class="cam-status hidden" id="camStatus"><div class="spinner"></div><span id="camStatusText">Getting your location…</span></div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+(function(){
+  "use strict";
+
+  // ============================== CONFIG ==============================
+  // CONFIG: replace with your deployed Apps Script Web App URL (ends in /exec).
+  // Deploy → Manage deployments → copy the "Web app" URL.
+  const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw3pIiUEnmICCgR7_opoxSoa9qByGUfquxWPw_g-hoBA0RTo3eTuo4elSM_cBxiApH_JA/exec';
+
+  // ============================== STATE ==============================
+  const state = {
+    token: null, user: null, rules: null,
+    pendingAction: null, capturedPhoto: null,
+    mediaStream: null, map: null, mapMarker: null, pingTimer: null
+  };
+
+  // ============================== SERVER CALL WRAPPER ==============================
+  // Sent as Content-Type: text/plain (not application/json) deliberately —
+  // Apps Script's Web App does not handle CORS preflight (OPTIONS)
+  // requests, and text/plain is a "simple request" that skips the
+  // preflight entirely while still letting the server JSON.parse() the body.
+  function call(action, params){
+    return fetch(APPS_SCRIPT_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ action: action, params: params || {} })
+    })
+      .then(function(res){ return res.json(); })
+      .then(function(json){
+        if (!json.ok) throw new Error(json.error || 'Server error');
+        return json.data;
+      });
+  }
+
+  // ============================== TOASTS ==============================
+  function toast(message, type){
+    const stack = document.getElementById('toast-stack');
+    const el = document.createElement('div');
+    el.className = 'toast ' + (type || '');
+    el.textContent = message;
+    stack.appendChild(el);
+    requestAnimationFrame(function(){ el.classList.add('show'); });
+    setTimeout(function(){ el.classList.remove('show'); setTimeout(function(){ el.remove(); }, 300); }, 4200);
+  }
+
+  if (APPS_SCRIPT_URL.indexOf('PASTE_YOUR') === 0){
+    document.getElementById('configWarning').style.display = 'block';
+  } else {
+    // Quick connectivity check on load so a broken backend link is caught
+    // before the person even tries to log in.
+    fetch(APPS_SCRIPT_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ action: 'getBusinessRules', params: { token: 'connectivity-check' } })
+    }).then(function(res){ return res.json(); })
+      .then(function(json){
+        // Any JSON response at all (even an auth error) proves the backend
+        // is reachable and doPost() is live — that's all this checks for.
+        if (typeof json !== 'object') throw new Error('Unexpected response');
+      })
+      .catch(function(err){
+        const warn = document.getElementById('configWarning');
+        warn.textContent = '⚠️ Could not reach the Apps Script backend (' + (err.message || 'unknown error') +
+          '). Check that APPS_SCRIPT_URL is correct and the deployment\'s "Who has access" is set to Anyone.';
+        warn.style.display = 'block';
+      });
+  }
+
+  // ============================== LOGIN ==============================
+  document.getElementById('loginForm').addEventListener('submit', function(e){
+    e.preventDefault();
+    const btn = document.getElementById('loginBtn');
+    const errBox = document.getElementById('loginError');
+    errBox.style.display = 'none';
+    btn.disabled = true; btn.textContent = 'Signing in…';
+
+    const id = document.getElementById('employeeId').value.trim();
+    const pin = document.getElementById('pin').value.trim();
+
+    call('login', { employeeId: id, pin: pin }).then(function(res){
+      btn.disabled = false; btn.textContent = 'Sign in';
+      if (!res.success){
+        errBox.textContent = res.message;
+        errBox.style.display = 'block';
+        return;
+      }
+      state.token = res.token;
+      state.user = res.user;
+      bootApp();
+    }).catch(function(err){
+      btn.disabled = false; btn.textContent = 'Sign in';
+      // Surface the real error instead of a generic message — this is the
+      // fastest way to tell a wrong-URL, wrong-access-setting, and network
+      // failure apart when something goes wrong.
+      errBox.textContent = 'Could not reach the server: ' + (err && err.message ? err.message : 'unknown error') +
+        '. Check APPS_SCRIPT_URL and the deployment\'s "Who has access" setting.';
+      errBox.style.display = 'block';
+    });
+  });
+
+  document.getElementById('logoutBtn').addEventListener('click', function(){
+    call('logout', { token: state.token }).catch(function(){}).finally(resetToLoginView);
+  });
+
+  function resetToLoginView(){
+    clearInterval(state.pingTimer);
+    state.pingTimer = null;
+    if (state.mediaStream){
+      state.mediaStream.getTracks().forEach(function(t){ t.stop(); });
+      state.mediaStream = null;
+    }
+    state.token = null; state.user = null; state.rules = null; state.mapMarker = null;
+
+    document.getElementById('app').classList.add('hidden');
+    document.getElementById('adminTabs').classList.add('hidden');
+    document.getElementById('adminPanel').classList.add('hidden');
+    document.getElementById('myShiftPanel').classList.remove('hidden');
+    document.querySelectorAll('.tab').forEach(function(t){ t.classList.remove('active'); });
+    document.querySelector('.tab[data-tab="myShift"]').classList.add('active');
+
+    document.getElementById('employeeId').value = '';
+    document.getElementById('pin').value = '';
+    document.getElementById('loginError').style.display = 'none';
+    document.getElementById('loginBtn').disabled = false;
+    document.getElementById('loginBtn').textContent = 'Sign in';
+
+    const empSelect = document.getElementById('fltEmployee');
+    while (empSelect.options.length > 1) empSelect.remove(1);
+
+    document.getElementById('loginView').classList.remove('hidden');
+  }
+
+  // ============================== BOOT ==============================
+  function bootApp(){
+    document.getElementById('loginView').classList.add('hidden');
+    document.getElementById('app').classList.remove('hidden');
+    document.getElementById('topGreeting').textContent = state.user.name + ' · ' + state.user.role;
+
+    if (state.user.role === 'Admin'){
+      document.getElementById('adminTabs').classList.remove('hidden');
+    }
+
+    call('getBusinessRules', { token: state.token }).then(function(rules){
+      state.rules = rules;
+      document.getElementById('heroHint').textContent =
+        'You can clock in any time. Mon–Fri after ' + rules.weekdayCutoff + 'am counts as late (' +
+        rules.currency + rules.weekdayPenalty.toLocaleString() + ' deduction). Saturday work earns a ' +
+        rules.currency + rules.saturdayReward.toLocaleString() + ' reward.';
+    });
+
+    startClock();
+    refreshToday();
+    refreshHistory();
+    initMap();
+
+    document.querySelectorAll('.tab').forEach(function(tab){
+      tab.addEventListener('click', function(){
+        document.querySelectorAll('.tab').forEach(function(t){ t.classList.remove('active'); });
+        tab.classList.add('active');
+        const isAdmin = tab.dataset.tab === 'admin';
+        document.getElementById('myShiftPanel').classList.toggle('hidden', isAdmin);
+        document.getElementById('adminPanel').classList.toggle('hidden', !isAdmin);
+        if (isAdmin) loadAdminData();
+      });
+    });
+  }
+
+  // ============================== LIVE CLOCK ==============================
+  function startClock(){
+    function tick(){
+      const now = new Date();
+      document.getElementById('dialTime').textContent = now.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', second:'2-digit'});
+      document.getElementById('dialDate').textContent = now.toLocaleDateString([], {weekday:'long', month:'short', day:'numeric'});
+    }
+    tick();
+    setInterval(tick, 1000);
+  }
+
+  // ============================== TODAY STATUS ==============================
+  function refreshToday(){
+    call('getTodayStatus', { token: state.token }).then(function(res){
+      const dial = document.getElementById('dial');
+      const status = document.getElementById('dialStatus');
+      const btn = document.getElementById('clockBtn');
+      const todayCard = document.getElementById('todayTimeCard');
+      const todayTag = document.getElementById('todayTag');
+
+      if (!res.today){
+        dial.className = 'dial';
+        status.className = 'dial-status';
+        status.textContent = 'Not clocked in';
+        btn.textContent = 'Clock in';
+        btn.className = 'clock-btn';
+        btn.disabled = false;
+        btn.onclick = function(){ openCamera('in'); };
+        todayCard.textContent = '—';
+        todayTag.textContent = '';
+        return;
+      }
+
+      const r = res.today;
+      if (r.ClockOutTime){
+        dial.className = 'dial status-in';
+        status.className = 'dial-status in';
+        status.textContent = 'Shift complete';
+        btn.textContent = 'Clocked out for today';
+        btn.className = 'clock-btn out';
+        btn.disabled = true;
+        todayCard.textContent = r.ClockInTime + ' → ' + r.ClockOutTime;
+      } else {
+        const late = r.LateStatus === 'Late';
+        dial.className = 'dial ' + (late ? 'status-late' : 'status-in');
+        status.className = 'dial-status ' + (late ? 'late' : 'in');
+        status.textContent = late ? 'Clocked in — late' : 'Clocked in';
+        btn.textContent = 'Clock out';
+        btn.className = 'clock-btn out';
+        btn.disabled = false;
+        btn.onclick = function(){ openCamera('out'); };
+        todayCard.textContent = r.ClockInTime;
+        startLocationPing();
+      }
+
+      todayTag.className = 'tag ' + (r.PenaltyAmount > 0 ? 'penalty' : r.RewardAmount > 0 ? 'reward' : 'ontime');
+      todayTag.textContent = r.PenaltyAmount > 0 ? ('−₦' + Number(r.PenaltyAmount).toLocaleString() + ' penalty')
+        : r.RewardAmount > 0 ? ('+₦' + Number(r.RewardAmount).toLocaleString() + ' reward')
+        : r.LateStatus;
+
+      if (r.ClockInLat) updateMap(Number(r.ClockInLat), Number(r.ClockInLng), r.ClockInLocationName);
+    });
+  }
+
+  // ============================== HISTORY ==============================
+  function refreshHistory(){
+    const end = new Date();
+    const start = new Date(); start.setDate(start.getDate() - 30);
+    const fmt = function(d){ return d.toISOString().slice(0,10); };
+
+    call('getAttendanceHistory', { token: state.token, startDate: fmt(start), endDate: fmt(end) }).then(function(res){
+      document.getElementById('presentCount').textContent = res.summary.present;
+      document.getElementById('totalHours').textContent = res.summary.totalHours.toFixed(1);
+      const net = res.summary.totalReward - res.summary.totalPenalty;
+      const netEl = document.getElementById('netAmount');
+      netEl.textContent = (net < 0 ? '−' : '') + '₦' + Math.abs(net).toLocaleString();
+      netEl.style.color = net < 0 ? 'var(--penalty)' : (net > 0 ? 'var(--teal)' : 'var(--ink)');
+
+      const list = document.getElementById('historyList');
+      if (res.records.length === 0){
+        list.innerHTML = '<div class="empty-state">No attendance records in the last 30 days.</div>';
+        return;
+      }
+      list.innerHTML = res.records.map(function(r){
+        const badge = r.LateStatus === 'Late' ? '<span class="badge late">Late</span>'
+          : (r.LateStatus === 'On Time' ? '<span class="badge ontime">On time</span>' : '');
+        const money = r.PenaltyAmount > 0 ? '<span class="badge penalty">−₦' + Number(r.PenaltyAmount).toLocaleString() + '</span>'
+          : (r.RewardAmount > 0 ? '<span class="badge reward">+₦' + Number(r.RewardAmount).toLocaleString() + '</span>' : '');
+        return '<div class="history-row">' +
+          '<div class="history-left"><span class="history-date">' + r.Date + ' · ' + r.DayType + '</span>' +
+          '<span class="history-meta">' + r.ClockInTime + (r.ClockOutTime ? ' → ' + r.ClockOutTime : ' (open)') +
+          ' · ' + (r.ClockInLocationName || '') + '</span></div>' +
+          '<div style="display:flex;gap:6px;">' + badge + money + '</div></div>';
+      }).join('');
+    });
+  }
+
+  // ============================== MAP ==============================
+  function initMap(){
+    state.map = L.map('map', {zoomControl:false, attributionControl:false}).setView([9.0765, 7.3986], 12);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(state.map);
+  }
+  function updateMap(lat, lng, label){
+    if (!state.map) return;
+    state.map.setView([lat, lng], 15);
+    if (state.mapMarker) state.map.removeLayer(state.mapMarker);
+    state.mapMarker = L.marker([lat, lng]).addTo(state.map);
+    if (label) state.mapMarker.bindPopup(label).openPopup();
+  }
+
+  // ============================== LOCATION PING (movement trail) ==============================
+  function startLocationPing(){
+    if (state.pingTimer) return;
+    const intervalMs = ((state.rules && state.rules.pingIntervalMinutes) || 15) * 60000;
+    state.pingTimer = setInterval(function(){
+      if (!navigator.geolocation) return;
+      navigator.geolocation.getCurrentPosition(function(pos){
+        call('pingLocation', { token: state.token, lat: pos.coords.latitude, lng: pos.coords.longitude });
+      }, function(){ /* silent fail on background ping */ }, {enableHighAccuracy:true, timeout:8000});
+    }, intervalMs);
+  }
+
+  // ============================== LIVE CAMERA + GEOLOCATION FLOW ==============================
+  function openCamera(action){
+    state.pendingAction = action;
+    state.capturedPhoto = null;
+    document.getElementById('camTitle').textContent = action === 'in' ? 'Clock in — take a selfie' : 'Clock out — take a selfie';
+    document.getElementById('camOverlay').classList.remove('hidden');
+    document.getElementById('camActionsLive').classList.remove('hidden');
+    document.getElementById('camActionsReview').classList.add('hidden');
+    document.getElementById('camStatus').classList.add('hidden');
+    document.getElementById('camVideo').classList.remove('hidden');
+    document.getElementById('camPhoto').classList.add('hidden');
+
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+      toast('This browser does not support live camera capture. Please use Chrome or Safari.', 'error');
+      closeCamera();
+      return;
+    }
+
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false }).then(function(stream){
+      state.mediaStream = stream;
+      document.getElementById('camVideo').srcObject = stream;
+    }).catch(function(err){
+      let message;
+      switch (err.name){
+        case 'NotAllowedError':
+        case 'PermissionDeniedError':
+          message = 'Camera permission is blocked. Tap the camera icon in your browser\'s address bar and allow it, then try again.';
+          break;
+        case 'NotFoundError':
+        case 'DevicesNotFoundError':
+          message = 'No camera was found on this device.';
+          break;
+        case 'NotReadableError':
+        case 'TrackStartError':
+          message = 'Your camera is busy in another app or tab. Close it and try again.';
+          break;
+        default:
+          message = 'Could not access the camera (' + (err.name || 'unknown error') + '). Please try again.';
+      }
+      toast(message, 'error');
+      closeCamera();
+    });
+  }
+
+  function closeCamera(){
+    if (state.mediaStream){
+      state.mediaStream.getTracks().forEach(function(t){ t.stop(); });
+      state.mediaStream = null;
+    }
+    document.getElementById('camOverlay').classList.add('hidden');
+  }
+
+  document.getElementById('camCancel').addEventListener('click', closeCamera);
+
+  document.getElementById('camCapture').addEventListener('click', function(){
+    const video = document.getElementById('camVideo');
+    const canvas = document.getElementById('camCanvas');
+    canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+    canvas.getContext('2d').drawImage(video, 0, 0);
+    state.capturedPhoto = canvas.toDataURL('image/jpeg', 0.85);
+
+    document.getElementById('camPhoto').src = state.capturedPhoto;
+    document.getElementById('camPhoto').classList.remove('hidden');
+    document.getElementById('camVideo').classList.add('hidden');
+    document.getElementById('camActionsLive').classList.add('hidden');
+    document.getElementById('camActionsReview').classList.remove('hidden');
+  });
+
+  document.getElementById('camRetake').addEventListener('click', function(){
+    document.getElementById('camPhoto').classList.add('hidden');
+    document.getElementById('camVideo').classList.remove('hidden');
+    document.getElementById('camActionsReview').classList.add('hidden');
+    document.getElementById('camActionsLive').classList.remove('hidden');
+  });
+
+  document.getElementById('camConfirm').addEventListener('click', function(){
+    if (!navigator.geolocation){
+      toast('Location services are not available on this device.', 'error');
+      return;
+    }
+    document.getElementById('camActionsReview').classList.add('hidden');
+    document.getElementById('camStatus').classList.remove('hidden');
+    document.getElementById('camStatusText').textContent = 'Getting your location…';
+
+    navigator.geolocation.getCurrentPosition(function(pos){
+      document.getElementById('camStatusText').textContent = 'Submitting…';
+      const payload = {
+        photoBase64: state.capturedPhoto,
+        lat: pos.coords.latitude,
+        lng: pos.coords.longitude,
+        accuracy: pos.coords.accuracy
+      };
+      const action = state.pendingAction === 'in' ? 'clockIn' : 'clockOut';
+
+      call(action, { token: state.token, payload: payload }).then(function(res){
+        closeCamera();
+        if (!res.success){
+          toast(res.message, 'error');
+          return;
+        }
+        if (state.pendingAction === 'in'){
+          if (res.record.withinGeofence === false){
+            toast('Clocked in, but you are ' + res.record.distanceMeters + 'm from ' + res.record.locationName + '. Flagged for admin review.', 'warn');
+          } else if (res.record.lateStatus === 'Late'){
+            toast('Clocked in — marked late (₦' + res.record.penalty.toLocaleString() + ' penalty applies).', 'warn');
+          } else if (res.record.reward > 0){
+            toast('Clocked in — Saturday reward of ₦' + res.record.reward.toLocaleString() + ' applied!', 'success');
+          } else {
+            toast('Clocked in successfully.', 'success');
+          }
+        } else {
+          toast('Clocked out — ' + res.record.hoursWorked + ' hours logged.', 'success');
+          clearInterval(state.pingTimer); state.pingTimer = null;
+        }
+        refreshToday();
+        refreshHistory();
+      }).catch(function(){
+        closeCamera();
+        toast('Could not reach the server. Please try again.', 'error');
+      });
+    }, function(){
+      document.getElementById('camStatus').classList.add('hidden');
+      document.getElementById('camActionsReview').classList.remove('hidden');
+      toast('Location access was denied. Please allow location permission to continue.', 'error');
+    }, {enableHighAccuracy:true, timeout:10000});
+  });
+
+  // ============================== ADMIN DASHBOARD ==============================
+  function loadAdminData(){
+    const filters = {
+      startDate: document.getElementById('fltStart').value,
+      endDate: document.getElementById('fltEnd').value,
+      employeeId: document.getElementById('fltEmployee').value
+    };
+    call('getAdminDashboardData', { token: state.token, filters: filters }).then(function(data){
+      document.getElementById('admLate').textContent = data.totals.lateCount;
+      document.getElementById('admFlags').textContent = data.totals.flaggedCount;
+      document.getElementById('admPenalty').textContent = '₦' + data.totals.totalPenalty.toLocaleString();
+      document.getElementById('admReward').textContent = '₦' + data.totals.totalReward.toLocaleString();
+
+      const empSelect = document.getElementById('fltEmployee');
+      if (empSelect.options.length <= 1){
+        data.employees.forEach(function(e){
+          const opt = document.createElement('option');
+          opt.value = e.employeeId; opt.textContent = e.name;
+          empSelect.appendChild(opt);
+        });
+      }
+
+      const tbody = document.getElementById('admTableBody');
+      tbody.innerHTML = data.records.length === 0
+        ? '<tr><td colspan="11" class="empty-state">No records match these filters.</td></tr>'
+        : data.records.map(function(r){
+          const statusBadge = r.LateStatus === 'Late' ? '<span class="badge late">Late</span>' : '<span class="badge ontime">' + r.LateStatus + '</span>';
+          const geoBadge = (r.WithinGeofence === false || r.WithinGeofence === 'FALSE')
+            ? '<span class="badge penalty">' + r.DistanceMeters + 'm away</span>'
+            : '<span class="badge ontime">Verified</span>';
+          const overrideBtn = (r.WithinGeofence === false || r.WithinGeofence === 'FALSE') && !r.AdminOverride
+            ? '<button class="btn-small" onclick="RP.approve(\'' + r.RecordID + '\')">Approve</button>' : '';
+          return '<tr>' +
+            '<td><img class="thumb" src="' + r.ClockInPhotoURL + '" onerror="this.style.visibility=\'hidden\'"/></td>' +
+            '<td>' + r.EmployeeName + '</td><td>' + r.Date + '</td><td>' + r.DayType + '</td>' +
+            '<td>' + r.ClockInTime + '</td><td>' + (r.ClockOutTime || '—') + '</td>' +
+            '<td>' + statusBadge + '</td><td>' + geoBadge + '</td>' +
+            '<td>' + (r.PenaltyAmount > 0 ? '−₦' + Number(r.PenaltyAmount).toLocaleString() : '—') + '</td>' +
+            '<td>' + (r.RewardAmount > 0 ? '+₦' + Number(r.RewardAmount).toLocaleString() : '—') + '</td>' +
+            '<td>' + overrideBtn + '</td></tr>';
+        }).join('');
+
+      const empBody = document.getElementById('empTableBody');
+      empBody.innerHTML = data.employees.map(function(e){
+        return '<tr><td>' + e.employeeId + '</td><td>' + e.name + '</td><td>' + (e.department||'') + '</td><td>' + e.role + '</td>' +
+          '<td>' + (e.active === false || e.active === 'FALSE' ? 'Inactive' : 'Active') + '</td>' +
+          '<td><button class="btn-small" onclick="RP.toggleEmp(\'' + e.employeeId + '\',' + (e.active === false || e.active === 'FALSE') + ')">' +
+          (e.active === false || e.active === 'FALSE' ? 'Reactivate' : 'Deactivate') + '</button></td></tr>';
+      }).join('');
+
+      const locBody = document.getElementById('locTableBody');
+      locBody.innerHTML = data.locations.map(function(l){
+        const isActive = !(l.Active === false || l.Active === 'FALSE');
+        const isEnforced = l.Enforced === true || l.Enforced === 'TRUE';
+        return '<tr><td>' + l.Name + '</td><td>' + l.Lat + '</td><td>' + l.Lng + '</td><td>' + l.RadiusMeters + '</td>' +
+          '<td>' + (isActive ? 'Active' : 'Inactive') + '</td>' +
+          '<td><span class="badge ' + (isEnforced ? 'penalty' : 'ontime') + '">' + (isEnforced ? 'Enforced' : 'Advisory') + '</span></td>' +
+          '<td style="display:flex;gap:6px;">' +
+          '<button class="btn-small" onclick="RP.toggleLoc(\'' + l.LocationID + '\',' + !isActive + ')">' +
+          (isActive ? 'Deactivate' : 'Reactivate') + '</button>' +
+          '<button class="btn-small" onclick="RP.toggleLocEnforced(\'' + l.LocationID + '\',' + !isEnforced + ')">' +
+          (isEnforced ? 'Make advisory' : 'Enforce') + '</button>' +
+          '</td></tr>';
+      }).join('');
+    });
+  }
+
+  document.getElementById('fltApply').addEventListener('click', loadAdminData);
+
+  document.getElementById('exportBtn').addEventListener('click', function(){
+    call('exportAttendanceCSV', {
+      token: state.token,
+      startDate: document.getElementById('fltStart').value,
+      endDate: document.getElementById('fltEnd').value
+    }).then(function(csv){
+      const blob = new Blob([csv], {type:'text/csv'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = 'retailpoint_attendance.csv';
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+  });
+
+  document.getElementById('addEmpBtn').addEventListener('click', function(){
+    const data = {
+      employeeId: document.getElementById('newEmpId').value.trim(),
+      name: document.getElementById('newEmpName').value.trim(),
+      pin: document.getElementById('newEmpPin').value.trim(),
+      department: document.getElementById('newEmpDept').value.trim(),
+      role: document.getElementById('newEmpRole').value
+    };
+    if (!data.employeeId || !data.name || !data.pin){
+      toast('Employee ID, name and PIN are required.', 'error'); return;
+    }
+    call('addEmployee', { token: state.token, data: data }).then(function(res){
+      if (res.success){
+        toast('Employee added.', 'success');
+        ['newEmpId','newEmpName','newEmpPin','newEmpDept'].forEach(function(id){ document.getElementById(id).value=''; });
+        loadAdminData();
+      } else { toast(res.message, 'error'); }
+    });
+  });
+
+  document.getElementById('addLocBtn').addEventListener('click', function(){
+    const data = {
+      name: document.getElementById('newLocName').value.trim(),
+      lat: document.getElementById('newLocLat').value.trim(),
+      lng: document.getElementById('newLocLng').value.trim(),
+      radius: document.getElementById('newLocRadius').value.trim(),
+      enforced: document.getElementById('newLocEnforced').checked
+    };
+    if (!data.name || !data.lat || !data.lng){
+      toast('Name, latitude and longitude are required.', 'error'); return;
+    }
+    call('addLocation', { token: state.token, data: data }).then(function(res){
+      if (res.success){
+        toast('Location added.', 'success');
+        ['newLocName','newLocLat','newLocLng','newLocRadius'].forEach(function(id){ document.getElementById(id).value=''; });
+        document.getElementById('newLocEnforced').checked = false;
+        loadAdminData();
+      } else { toast(res.message, 'error'); }
+    });
+  });
+
+  window.RP = {
+    approve: function(recordId){
+      call('approveGeofenceOverride', { token: state.token, recordId: recordId, note: 'Approved by admin' }).then(function(){
+        toast('Record approved.', 'success');
+        loadAdminData();
+      });
+    },
+    toggleEmp: function(id, makeActive){
+      call('setEmployeeActive', { token: state.token, employeeId: id, active: makeActive }).then(function(){ loadAdminData(); });
+    },
+    toggleLoc: function(id, makeActive){
+      call('setLocationActive', { token: state.token, locationId: id, active: makeActive }).then(function(){ loadAdminData(); });
+    },
+    toggleLocEnforced: function(id, makeEnforced){
+      call('setLocationEnforced', { token: state.token, locationId: id, enforced: makeEnforced }).then(function(){ loadAdminData(); });
+    }
+  };
+})();
+</script>
+</body>
+</html>
