@@ -4,8 +4,12 @@
 // offline resilience: if the network is unreachable, the app still loads
 // from cache instead of showing a browser error screen.
 
+// Relative paths throughout this file deliberately — this site is hosted
+// at a GitHub Pages PROJECT URL (username.github.io/reponame/), so an
+// absolute path like "/index.html" would incorrectly resolve to the
+// account's root domain instead of the project subfolder.
 const CACHE_NAME = 'retailpoint-shell-v1';
-const APP_SHELL = ['/', '/index.html', '/manifest.json'];
+const APP_SHELL = ['./', './index.html', './manifest.json'];
 
 self.addEventListener('install', function (event) {
   self.skipWaiting();
