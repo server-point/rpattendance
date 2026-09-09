@@ -427,8 +427,8 @@
       })
       .catch(function(err){
         const warn = document.getElementById('configWarning');
-        warn.textContent = '⚠️ Could not reach the Apps Script backend (' + (err.message || 'unknown error') +
-          '). Check that APPS_SCRIPT_URL is correct and the deployment\'s "Who has access" is set to Anyone.';
+        warn.textContent = '⚠️ Could not reach the Server backend (' + (err.message || 'unknown error') +
+          '). Check your Device Internet is currently bad now! The deployment\'s "Who has access" is set to Anyone.';
         warn.style.display = 'block';
       });
   }
@@ -460,7 +460,7 @@
       // fastest way to tell a wrong-URL, wrong-access-setting, and network
       // failure apart when something goes wrong.
       errBox.textContent = 'Could not reach the server: ' + (err && err.message ? err.message : 'unknown error') +
-        '. Check APPS_SCRIPT_URL and the deployment\'s "Who has access" setting.';
+        '. Check your Device Internet is currently bad now! The deployment\'s "Who has access" setting.';
       errBox.style.display = 'block';
     });
   });
