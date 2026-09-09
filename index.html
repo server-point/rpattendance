@@ -198,8 +198,8 @@
     <h1>RetailPoint Attendance</h1>
     <p class="sub">Sign in with your Employee ID and PIN to clock in.</p>
     <div class="config-warning" id="configWarning">
-      ⚠️ APPS_SCRIPT_URL is not set yet. Open this file's &lt;script&gt; section and paste your deployed
-      Apps Script Web App URL (ending in /exec) into the APPS_SCRIPT_URL constant near the top.
+      ⚠️ SERVER is not set yet. Open this file's &lt;script&gt; section and paste your deployed
+      Apps Script Web App URL (ending in /exec) into the SERVER constant near the top.
     </div>
     <div class="login-error" id="loginError"></div>
     <form id="loginForm">
@@ -256,6 +256,7 @@
       <section class="block">
         <h2>Last known location</h2>
         <div id="map"></div>
+        <button class="btn-small" id="locateMeBtn" style="margin-top:8px;">📍 Center on my current location</button>
       </section>
 
       <section class="block">
@@ -377,7 +378,7 @@
   const state = {
     token: null, user: null, rules: null,
     pendingAction: null, capturedPhoto: null,
-    mediaStream: null, map: null, mapMarker: null, pingTimer: null
+    mediaStream: null, map: null, mapMarker: null, liveMarker: null, pingTimer: null
   };
 
   // ============================== SERVER CALL WRAPPER ==============================
@@ -475,7 +476,8 @@
       state.mediaStream.getTracks().forEach(function(t){ t.stop(); });
       state.mediaStream = null;
     }
-    state.token = null; state.user = null; state.rules = null; state.mapMarker = null;
+    state.token = null; state.user = null; state.rules = null; state.mapMarker = null; state.liveMarker = null;
+    if (state.map){ state.map.remove(); state.map = null; }
 
     document.getElementById('app').classList.add('hidden');
     document.getElementById('adminTabs').classList.add('hidden');
@@ -630,9 +632,19 @@
 
   // ============================== MAP ==============================
   function initMap(){
-    state.map = L.map('map', {zoomControl:false, attributionControl:false}).setView([9.0765, 7.3986], 12);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(state.map);
+    // zoomControl + attributionControl are ON: pan/scroll-zoom/pinch-zoom work out of the box
+    // with Leaflet, and OpenStreetMap's usage policy requires visible attribution.
+    state.map = L.map('map', {zoomControl:true, attributionControl:true}).setView([9.0765, 7.3986], 12);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+      maxZoom: 19
+    }).addTo(state.map);
+
+    // Show the user's current device position immediately on load (even before any
+    // clock-in), so the map feels live rather than a static placeholder image.
+    locateMe(13);
   }
+
   function updateMap(lat, lng, label){
     if (!state.map) return;
     state.map.setView([lat, lng], 15);
@@ -640,6 +652,29 @@
     state.mapMarker = L.marker([lat, lng]).addTo(state.map);
     if (label) state.mapMarker.bindPopup(label).openPopup();
   }
+
+  // Places/updates a distinct "you are here" marker from live device GPS,
+  // independent of the last saved clock-in/out record.
+  function updateLiveMarker(lat, lng){
+    if (!state.map) return;
+    if (state.liveMarker) state.map.removeLayer(state.liveMarker);
+    state.liveMarker = L.circleMarker([lat, lng], {
+      radius: 8, color: '#1F8A70', fillColor: '#1F8A70', fillOpacity: 0.85, weight: 2
+    }).addTo(state.map).bindPopup('Your current location');
+  }
+
+  function locateMe(zoom){
+    if (!navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(function(pos){
+      const lat = pos.coords.latitude, lng = pos.coords.longitude;
+      updateLiveMarker(lat, lng);
+      state.map.setView([lat, lng], zoom || 15);
+    }, function(){ /* silent fail — user may have denied permission; map stays at default view */ }, {
+      enableHighAccuracy: true, timeout: 8000
+    });
+  }
+
+  document.getElementById('locateMeBtn').addEventListener('click', function(){ locateMe(16); });
 
   // ============================== LOCATION PING (movement trail) ==============================
   function startLocationPing(){
@@ -649,6 +684,9 @@
       if (!navigator.geolocation) return;
       navigator.geolocation.getCurrentPosition(function(pos){
         call('pingLocation', { token: state.token, lat: pos.coords.latitude, lng: pos.coords.longitude });
+        // Keep the live "you are here" marker in sync with each background ping
+        // while the employee is clocked in.
+        updateLiveMarker(pos.coords.latitude, pos.coords.longitude);
       }, function(){ /* silent fail on background ping */ }, {enableHighAccuracy:true, timeout:8000});
     }, intervalMs);
   }
