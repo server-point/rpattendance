@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<title>RetailPoint Attendance</title>
+<title>RetailPoint Att System</title>
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
 <!-- PWA / TWA requirements: manifest + theme color -->
 <!-- Relative paths (no leading "/") deliberately used here — this app is
@@ -195,10 +195,10 @@
     <div class="brand-mark">
        <img src="https://res.cloudinary.com/qgu6ln2v/image/upload/v1788607141/logo_padrto.png" alt="RetailPoint Logo">
     </div>
-    <h1>RetailPoint Attendance</h1>
+    <h1>RetailPoint Att System</h1>
     <p class="sub">Sign in with your Employee ID and PIN to clock in.</p>
     <div class="config-warning" id="configWarning">
-      ⚠️ SERVER is not reachable. You are currently experiencing bad network. 
+      ⚠️ SERVER is not reachable. You are experiencing bad network right Now! 
     </div>
     <div class="login-error" id="loginError"></div>
     <form id="loginForm">
@@ -371,7 +371,7 @@
   // ============================== CONFIG ==============================
   // CONFIG: replace with your deployed Apps Script Web App URL (ends in /exec).
   // Deploy → Manage deployments → copy the "Web app" URL.
-  const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw3pIiUEnmICCgR7_opoxSoa9qByGUfquxWPw_g-hoBA0RTo3eTuo4elSM_cBxiApH_JA/exec';
+  const SERVER_LINK = 'https://script.google.com/macros/s/AKfycbw3pIiUEnmICCgR7_opoxSoa9qByGUfquxWPw_g-hoBA0RTo3eTuo4elSM_cBxiApH_JA/exec';
 
   // ============================== STATE ==============================
   const state = {
@@ -386,7 +386,7 @@
   // requests, and text/plain is a "simple request" that skips the
   // preflight entirely while still letting the server JSON.parse() the body.
   function call(action, params){
-    return fetch(APPS_SCRIPT_URL, {
+    return fetch(SERVER_LINK, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: JSON.stringify({ action: action, params: params || {} })
@@ -409,12 +409,12 @@
     setTimeout(function(){ el.classList.remove('show'); setTimeout(function(){ el.remove(); }, 300); }, 4200);
   }
 
-  if (APPS_SCRIPT_URL.indexOf('PASTE_YOUR') === 0){
+  if (SERVER_LINK.indexOf('PASTE_YOUR') === 0){
     document.getElementById('configWarning').style.display = 'block';
   } else {
     // Quick connectivity check on load so a broken backend link is caught
     // before the person even tries to log in.
-    fetch(APPS_SCRIPT_URL, {
+    fetch(SERVER_LINK, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: JSON.stringify({ action: 'getBusinessRules', params: { token: 'connectivity-check' } })
@@ -426,8 +426,8 @@
       })
       .catch(function(err){
         const warn = document.getElementById('configWarning');
-        warn.textContent = '⚠️ Could not reach the Server backend (' + (err.message || 'unknown error') +
-          '). Check your Device Internet is currently bad now! The deployment\'s "Who has access" is set to Anyone.';
+        warn.textContent = '⚠️ Could not reach the Server (' + (err.message || 'unknown error') +
+          '). Your Internet is experiencing bad network right now!';
         warn.style.display = 'block';
       });
   }
@@ -457,9 +457,11 @@
       btn.disabled = false; btn.textContent = 'Sign in';
       // Surface the real error instead of a generic message — this is the
       // fastest way to tell a wrong-URL, wrong-access-setting, and network
-      // failure apart when something goes wrong.
+      // failure apart when something goes wrong. warn.textContent = '⚠️ Could not reach the Server (' + (err.message || 'unknown error') +
+      //    '). Your Internet is experiencing bad network right now!'
+
       errBox.textContent = 'Could not reach the server: ' + (err && err.message ? err.message : 'unknown error') +
-        '. Check your Device Internet is currently bad now! The deployment\'s "Who has access" setting.';
+        '. Your Internet is experiencing bad network right now!';
       errBox.style.display = 'block';
     });
   });
