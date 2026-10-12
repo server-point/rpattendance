@@ -4,12 +4,7 @@
 <meta charset="UTF-8" />
 <title>RetailPoint Att System</title>
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
-<!-- PWA / TWA requirements: manifest + theme color -->
-<!-- Relative paths (no leading "/") deliberately used here — this app is
-     hosted at a GitHub Pages PROJECT URL (username.github.io/reponame/),
-     not a root domain. An absolute path like "/manifest.json" would
-     incorrectly resolve to username.github.io/manifest.json and silently
-     fail to load. Relative paths resolve correctly under any subfolder. -->
+<!-- PWA / TWA: relative paths on purpose (GitHub Pages project URL = username.github.io/reponame/) -->
 <link rel="manifest" href="manifest.json" />
 <meta name="theme-color" content="#142B3D" />
 <link rel="icon" href="https://res.cloudinary.com/qgu6ln2v/image/upload/v1788607141/logo_padrto.png" />
@@ -79,6 +74,7 @@
   .login-card .brand-mark{width:80px;height:70px;border-radius:12px;font-size:18px;margin-bottom:16px;background:transparent;}
   .login-card h1{font-size:22px;margin:0 0 4px;}
   .login-card p.sub{color:var(--text-muted);margin:0 0 24px;font-size:14px;}
+  .login-card p.version{color:var(--text-muted);margin:18px 0 0;font-size:11px;opacity:0.7;}
   .brand-mark img{max-width:100%;height:auto;display:block;margin:0 auto;}
 
   .field{margin-bottom:14px;width:100%;text-align:left;}
@@ -156,6 +152,26 @@
   .spinner{width:14px;height:14px;border-radius:50%;border:2px solid rgba(255,255,255,0.3);border-top-color:#fff;animation:spin .8s linear infinite;}
   @keyframes spin{to{transform:rotate(360deg);}}
 
+  /* Camera Fallback Styling */
+  #camFallbackContainer{
+    position:absolute;
+    inset:0;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    padding:20px;
+    text-align:center;
+    background:var(--ink-2);
+    box-sizing:border-box;
+  }
+  #camFallbackText{
+    font-size:13.5px;
+    color:#CBD6DE;
+    margin-bottom:16px;
+    line-height:1.5;
+  }
+
   #toast-stack{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;gap:8px;z-index:80;width:calc(100% - 32px);max-width:380px;}
   .toast{background:var(--ink);color:#fff;padding:12px 16px;border-radius:var(--radius-s);font-size:13.5px;box-shadow:0 12px 24px -12px rgba(0,0,0,0.5);opacity:0;transform:translateY(8px);transition:all .25s;}
   .toast.show{opacity:1;transform:translateY(0);}
@@ -198,7 +214,7 @@
     <h1>RetailPoint Att System</h1>
     <p class="sub">Sign in with your Employee ID and PIN to clock in.</p>
     <div class="config-warning" id="configWarning">
-      ⚠️ SERVER is not reachable. You are experiencing bad network right Now! 
+      ⚠️ Server is not set reachable. You are currently experiencing bad network.
     </div>
     <div class="login-error" id="loginError"></div>
     <form id="loginForm">
@@ -212,6 +228,8 @@
       </div>
       <button class="btn-primary" type="submit" id="loginBtn">Sign in</button>
     </form>
+    <!-- If you do not see this exact version after uploading, your browser is serving an old cached copy. -->
+    <p class="version">Version 2.2 · 2026-10-01</p>
   </div>
 </div>
 
@@ -260,7 +278,8 @@
 
       <section class="block">
         <h2>Attendance history</h2>
-        <div id="historyList" class="card"><div class="empty-state">Loading history…</div></div>
+        <div id="historyList" class="card"><div class="empty-state">Loading attendance history…</div></div>
+        <div style="margin-top:7px;font-size:12px;color:var(--text-muted);">Showing the last 90 days. Completed shifts display both clock-in and clock-out times.</div>
       </section>
     </div>
 
@@ -269,6 +288,7 @@
       <section class="block" style="margin-top:0;">
         <div class="grid">
           <div class="card"><h3>Late clock-ins</h3><div class="big" id="admLate">0</div></div>
+          <div class="card"><h3>Absences</h3><div class="big" id="admAbsent">0</div></div>
           <div class="card"><h3>Geofence flags</h3><div class="big" id="admFlags">0</div></div>
           <div class="card"><h3>Total penalties</h3><div class="big" id="admPenalty">₦0</div></div>
           <div class="card"><h3>Total rewards</h3><div class="big" id="admReward">₦0</div></div>
@@ -282,7 +302,7 @@
           <input type="date" id="fltEnd" />
           <select id="fltEmployee"><option value="">All employees</option></select>
           <button class="btn-small" id="fltApply">Apply filters</button>
-          <button class="btn-small" id="exportBtn">Export CSV</button>
+          <button class="btn-small" id="exportBtn">Export Excel</button>
         </div>
         <div class="table-wrap">
           <table>
@@ -338,10 +358,6 @@
 </div>
 
 <!-- ============================= LIVE CAMERA MODAL ============================= -->
-<!-- This works because this page is hosted on a real top-level HTTPS domain
-     (GitHub Pages / Netlify / Firebase Hosting), NOT inside Apps Script's
-     own sandboxed iframe. getUserMedia() is blocked in that iframe by
-     design at the browser level — see the setup notes in Code.gs. -->
 <div class="overlay hidden" id="camOverlay">
   <div class="cam-card">
     <h3 id="camTitle">Clock in — take a selfie</h3>
@@ -349,6 +365,12 @@
     <div class="cam-video-wrap">
       <video id="camVideo" autoplay playsinline muted></video>
       <img id="camPhoto" class="hidden" />
+
+      <!-- Fallback container if the parent iframe blocks camera initialization -->
+      <div id="camFallbackContainer" class="hidden">
+        <p id="camFallbackText">Live camera capture is blocked by your browser's sandboxed permissions.</p>
+        <button class="btn-primary" id="btnFallbackCamera" style="margin-top:0; width:auto; padding:10px 24px;">Use Device Camera</button>
+      </div>
     </div>
     <canvas id="camCanvas" class="hidden"></canvas>
     <div class="cam-actions" id="camActionsLive">
@@ -363,28 +385,28 @@
   </div>
 </div>
 
+<!-- Hidden inputs to accept direct high-quality native capture -->
+<input type="file" id="nativeCamInput" accept="image/*" capture="user" class="hidden" />
+
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 (function(){
   "use strict";
 
   // ============================== CONFIG ==============================
-  // CONFIG: replace with your deployed Apps Script Web App URL (ends in /exec).
-  // Deploy → Manage deployments → copy the "Web app" URL.
   const SERVER_LINK = 'https://script.google.com/macros/s/AKfycbw3pIiUEnmICCgR7_opoxSoa9qByGUfquxWPw_g-hoBA0RTo3eTuo4elSM_cBxiApH_JA/exec';
+  const APP_VERSION = '2.2';
+  console.log('RetailPoint client version ' + APP_VERSION);
 
   // ============================== STATE ==============================
   const state = {
     token: null, user: null, rules: null,
     pendingAction: null, capturedPhoto: null,
-    mediaStream: null, map: null, mapMarker: null, liveMarker: null, pingTimer: null
+    mediaStream: null, map: null, mapMarker: null, liveMarker: null, pingTimer: null,
+    useFallbackCamera: false
   };
 
   // ============================== SERVER CALL WRAPPER ==============================
-  // Sent as Content-Type: text/plain (not application/json) deliberately —
-  // Apps Script's Web App does not handle CORS preflight (OPTIONS)
-  // requests, and text/plain is a "simple request" that skips the
-  // preflight entirely while still letting the server JSON.parse() the body.
   function call(action, params){
     return fetch(SERVER_LINK, {
       method: 'POST',
@@ -412,18 +434,13 @@
   if (SERVER_LINK.indexOf('PASTE_YOUR') === 0){
     document.getElementById('configWarning').style.display = 'block';
   } else {
-    // Quick connectivity check on load so a broken backend link is caught
-    // before the person even tries to log in.
+    // Connectivity check on load: any JSON reply (even an auth error) proves the backend is live.
     fetch(SERVER_LINK, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: JSON.stringify({ action: 'getBusinessRules', params: { token: 'connectivity-check' } })
     }).then(function(res){ return res.json(); })
-      .then(function(json){
-        // Any JSON response at all (even an auth error) proves the backend
-        // is reachable and doPost() is live — that's all this checks for.
-        if (typeof json !== 'object') throw new Error('Unexpected response');
-      })
+      .then(function(json){ if (typeof json !== 'object') throw new Error('Unexpected response'); })
       .catch(function(err){
         const warn = document.getElementById('configWarning');
         warn.textContent = '⚠️ Could not reach the Server (' + (err.message || 'unknown error') +
@@ -455,13 +472,8 @@
       bootApp();
     }).catch(function(err){
       btn.disabled = false; btn.textContent = 'Sign in';
-      // Surface the real error instead of a generic message — this is the
-      // fastest way to tell a wrong-URL, wrong-access-setting, and network
-      // failure apart when something goes wrong. warn.textContent = '⚠️ Could not reach the Server (' + (err.message || 'unknown error') +
-      //    '). Your Internet is experiencing bad network right now!'
-
       errBox.textContent = 'Could not reach the server: ' + (err && err.message ? err.message : 'unknown error') +
-        '. Your Internet is experiencing bad network right now!';
+        '. Check your Internet connection.';
       errBox.style.display = 'block';
     });
   });
@@ -568,6 +580,7 @@
       }
 
       const r = res.today;
+
       if (r.ClockOutTime){
         dial.className = 'dial status-in';
         status.className = 'dial-status in';
@@ -575,7 +588,10 @@
         btn.textContent = 'Clocked out for today';
         btn.className = 'clock-btn out';
         btn.disabled = true;
+        btn.onclick = null;
         todayCard.textContent = r.ClockInTime + ' → ' + r.ClockOutTime;
+        clearInterval(state.pingTimer);
+        state.pingTimer = null;
       } else {
         const late = r.LateStatus === 'Late';
         dial.className = 'dial ' + (late ? 'status-late' : 'status-in');
@@ -589,60 +605,97 @@
         startLocationPing();
       }
 
-      todayTag.className = 'tag ' + (r.PenaltyAmount > 0 ? 'penalty' : r.RewardAmount > 0 ? 'reward' : 'ontime');
-      todayTag.textContent = r.PenaltyAmount > 0 ? ('−₦' + Number(r.PenaltyAmount).toLocaleString() + ' penalty')
-        : r.RewardAmount > 0 ? ('+₦' + Number(r.RewardAmount).toLocaleString() + ' reward')
-        : r.LateStatus;
+      todayTag.className = 'tag ' +
+        (Number(r.PenaltyAmount) > 0 ? 'penalty' :
+        Number(r.RewardAmount) > 0 ? 'reward' : 'ontime');
 
-      if (r.ClockInLat) updateMap(Number(r.ClockInLat), Number(r.ClockInLng), r.ClockInLocationName);
+      todayTag.textContent = Number(r.PenaltyAmount) > 0
+        ? ('−₦' + Number(r.PenaltyAmount).toLocaleString() + ' penalty')
+        : Number(r.RewardAmount) > 0
+          ? ('+₦' + Number(r.RewardAmount).toLocaleString() + ' reward')
+          : (r.LateStatus || '');
+
+      if (r.ClockInLat) {
+        updateMap(Number(r.ClockInLat), Number(r.ClockInLng), r.ClockInLocationName);
+      }
+    }).catch(function(err){
+      toast(err && err.message ? err.message : 'Unable to load today attendance status.', 'error');
     });
   }
 
   // ============================== HISTORY ==============================
   function refreshHistory(){
     const end = new Date();
-    const start = new Date(); start.setDate(start.getDate() - 30);
-    const fmt = function(d){ return d.toISOString().slice(0,10); };
+    const start = new Date();
+    start.setDate(start.getDate() - 90);
 
-    call('getAttendanceHistory', { token: state.token, startDate: fmt(start), endDate: fmt(end) }).then(function(res){
+    const fmt = function(d){
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return y + '-' + m + '-' + day;
+    };
+
+    const list = document.getElementById('historyList');
+    list.innerHTML = '<div class="empty-state">Loading attendance history…</div>';
+
+    call('getAttendanceHistory', {
+      token: state.token,
+      startDate: fmt(start),
+      endDate: fmt(end)
+    }).then(function(res){
       document.getElementById('presentCount').textContent = res.summary.present;
-      document.getElementById('totalHours').textContent = res.summary.totalHours.toFixed(1);
-      const net = res.summary.totalReward - res.summary.totalPenalty;
+      document.getElementById('totalHours').textContent = Number(res.summary.totalHours || 0).toFixed(1);
+
+      const net = Number(res.summary.totalReward || 0) - Number(res.summary.totalPenalty || 0);
       const netEl = document.getElementById('netAmount');
       netEl.textContent = (net < 0 ? '−' : '') + '₦' + Math.abs(net).toLocaleString();
       netEl.style.color = net < 0 ? 'var(--penalty)' : (net > 0 ? 'var(--teal)' : 'var(--ink)');
 
-      const list = document.getElementById('historyList');
-      if (res.records.length === 0){
-        list.innerHTML = '<div class="empty-state">No attendance records in the last 30 days.</div>';
+      if (!res.records || res.records.length === 0){
+        list.innerHTML = '<div class="empty-state">No attendance records found for the selected period.</div>';
         return;
       }
+
       list.innerHTML = res.records.map(function(r){
-        const badge = r.LateStatus === 'Late' ? '<span class="badge late">Late</span>'
-          : (r.LateStatus === 'On Time' ? '<span class="badge ontime">On time</span>' : '');
-        const money = r.PenaltyAmount > 0 ? '<span class="badge penalty">−₦' + Number(r.PenaltyAmount).toLocaleString() + '</span>'
-          : (r.RewardAmount > 0 ? '<span class="badge reward">+₦' + Number(r.RewardAmount).toLocaleString() + '</span>' : '');
+        const badge = r.LateStatus === 'Late'
+          ? '<span class="badge late">Late</span>'
+          : (r.LateStatus === 'On Time'
+            ? '<span class="badge ontime">On time</span>'
+            : '');
+
+        const money = Number(r.PenaltyAmount) > 0
+          ? '<span class="badge penalty">−₦' + Number(r.PenaltyAmount).toLocaleString() + '</span>'
+          : (Number(r.RewardAmount) > 0
+            ? '<span class="badge reward">+₦' + Number(r.RewardAmount).toLocaleString() + '</span>'
+            : '');
+
+        const timeText = r.ClockInTime
+          ? r.ClockInTime + (r.ClockOutTime ? ' → ' + r.ClockOutTime : ' → Open')
+          : 'No clock-in time';
+
         return '<div class="history-row">' +
-          '<div class="history-left"><span class="history-date">' + r.Date + ' · ' + r.DayType + '</span>' +
-          '<span class="history-meta">' + r.ClockInTime + (r.ClockOutTime ? ' → ' + r.ClockOutTime : ' (open)') +
-          ' · ' + (r.ClockInLocationName || '') + '</span></div>' +
-          '<div style="display:flex;gap:6px;">' + badge + money + '</div></div>';
+          '<div class="history-left">' +
+            '<span class="history-date">' + (r.Date || 'Unknown date') + ' · ' + (r.DayType || '') + '</span>' +
+            '<span class="history-meta">' + timeText + ' · ' + (r.ClockInLocationName || 'Location not recorded') + '</span>' +
+          '</div>' +
+          '<div style="display:flex;gap:6px;">' + badge + money + '</div>' +
+        '</div>';
       }).join('');
+    }).catch(function(err){
+      list.innerHTML = '<div class="empty-state">Unable to load attendance history. Please refresh and try again.</div>';
+      toast(err && err.message ? err.message : 'Unable to load attendance history.', 'error');
     });
   }
 
   // ============================== MAP ==============================
   function initMap(){
-    // zoomControl + attributionControl are ON: pan/scroll-zoom/pinch-zoom work out of the box
-    // with Leaflet, and OpenStreetMap's usage policy requires visible attribution.
     state.map = L.map('map', {zoomControl:true, attributionControl:true}).setView([9.0765, 7.3986], 12);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
       maxZoom: 19
     }).addTo(state.map);
 
-    // Show the user's current device position immediately on load (even before any
-    // clock-in), so the map feels live rather than a static placeholder image.
     locateMe(13);
   }
 
@@ -654,8 +707,6 @@
     if (label) state.mapMarker.bindPopup(label).openPopup();
   }
 
-  // Places/updates a distinct "you are here" marker from live device GPS,
-  // independent of the last saved clock-in/out record.
   function updateLiveMarker(lat, lng){
     if (!state.map) return;
     if (state.liveMarker) state.map.removeLayer(state.liveMarker);
@@ -670,14 +721,14 @@
       const lat = pos.coords.latitude, lng = pos.coords.longitude;
       updateLiveMarker(lat, lng);
       state.map.setView([lat, lng], zoom || 15);
-    }, function(){ /* silent fail — user may have denied permission; map stays at default view */ }, {
+    }, function(){ /* silent fail */ }, {
       enableHighAccuracy: true, timeout: 8000
     });
   }
 
   document.getElementById('locateMeBtn').addEventListener('click', function(){ locateMe(16); });
 
-  // ============================== LOCATION PING (movement trail) ==============================
+  // ============================== LOCATION PING ==============================
   function startLocationPing(){
     if (state.pingTimer) return;
     const intervalMs = ((state.rules && state.rules.pingIntervalMinutes) || 15) * 60000;
@@ -685,17 +736,17 @@
       if (!navigator.geolocation) return;
       navigator.geolocation.getCurrentPosition(function(pos){
         call('pingLocation', { token: state.token, lat: pos.coords.latitude, lng: pos.coords.longitude });
-        // Keep the live "you are here" marker in sync with each background ping
-        // while the employee is clocked in.
         updateLiveMarker(pos.coords.latitude, pos.coords.longitude);
-      }, function(){ /* silent fail on background ping */ }, {enableHighAccuracy:true, timeout:8000});
+      }, function(){ /* silent fail */ }, {enableHighAccuracy:true, timeout:8000});
     }, intervalMs);
   }
 
-  // ============================== LIVE CAMERA + GEOLOCATION FLOW ==============================
+  // ============================== CAMERA FLOWS ==============================
   function openCamera(action){
     state.pendingAction = action;
     state.capturedPhoto = null;
+    state.useFallbackCamera = false;
+
     document.getElementById('camTitle').textContent = action === 'in' ? 'Clock in — take a selfie' : 'Clock out — take a selfie';
     document.getElementById('camOverlay').classList.remove('hidden');
     document.getElementById('camActionsLive').classList.remove('hidden');
@@ -703,10 +754,11 @@
     document.getElementById('camStatus').classList.add('hidden');
     document.getElementById('camVideo').classList.remove('hidden');
     document.getElementById('camPhoto').classList.add('hidden');
+    document.getElementById('camFallbackContainer').classList.add('hidden');
+    document.getElementById('camStep').textContent = "Position your face in frame, then capture.";
 
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
-      toast('This browser does not support live camera capture. Please use Chrome or Safari.', 'error');
-      closeCamera();
+      setupFallbackUI();
       return;
     }
 
@@ -714,26 +766,17 @@
       state.mediaStream = stream;
       document.getElementById('camVideo').srcObject = stream;
     }).catch(function(err){
-      let message;
-      switch (err.name){
-        case 'NotAllowedError':
-        case 'PermissionDeniedError':
-          message = 'Camera permission is blocked. Tap the camera icon in your browser\'s address bar and allow it, then try again.';
-          break;
-        case 'NotFoundError':
-        case 'DevicesNotFoundError':
-          message = 'No camera was found on this device.';
-          break;
-        case 'NotReadableError':
-        case 'TrackStartError':
-          message = 'Your camera is busy in another app or tab. Close it and try again.';
-          break;
-        default:
-          message = 'Could not access the camera (' + (err.name || 'unknown error') + '). Please try again.';
-      }
-      toast(message, 'error');
-      closeCamera();
+      console.warn("Direct webcam stream failed or was blocked inside sandbox, using fallback wrapper: ", err);
+      setupFallbackUI();
     });
+  }
+
+  function setupFallbackUI(){
+    state.useFallbackCamera = true;
+    document.getElementById('camVideo').classList.add('hidden');
+    document.getElementById('camActionsLive').classList.add('hidden');
+    document.getElementById('camFallbackContainer').classList.remove('hidden');
+    document.getElementById('camStep').textContent = "Click the button below to capture using your device camera.";
   }
 
   function closeCamera(){
@@ -742,9 +785,34 @@
       state.mediaStream = null;
     }
     document.getElementById('camOverlay').classList.add('hidden');
+    document.getElementById('nativeCamInput').value = '';
   }
 
   document.getElementById('camCancel').addEventListener('click', closeCamera);
+
+  document.getElementById('btnFallbackCamera').addEventListener('click', function(e){
+    e.preventDefault();
+    document.getElementById('nativeCamInput').click();
+  });
+
+  document.getElementById('nativeCamInput').addEventListener('change', function(e){
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = function(evt) {
+        state.capturedPhoto = evt.target.result;
+
+        document.getElementById('camPhoto').src = state.capturedPhoto;
+        document.getElementById('camPhoto').classList.remove('hidden');
+        document.getElementById('camVideo').classList.add('hidden');
+        document.getElementById('camFallbackContainer').classList.add('hidden');
+        document.getElementById('camActionsLive').classList.add('hidden');
+        document.getElementById('camActionsReview').classList.remove('hidden');
+        document.getElementById('camStep').textContent = "Review your photo, then confirm to submit.";
+      };
+      reader.readAsDataURL(file);
+    }
+  });
 
   document.getElementById('camCapture').addEventListener('click', function(){
     const video = document.getElementById('camVideo');
@@ -762,9 +830,17 @@
 
   document.getElementById('camRetake').addEventListener('click', function(){
     document.getElementById('camPhoto').classList.add('hidden');
-    document.getElementById('camVideo').classList.remove('hidden');
     document.getElementById('camActionsReview').classList.add('hidden');
-    document.getElementById('camActionsLive').classList.remove('hidden');
+    document.getElementById('nativeCamInput').value = '';
+
+    if (state.useFallbackCamera) {
+      document.getElementById('camFallbackContainer').classList.remove('hidden');
+      document.getElementById('camStep').textContent = "Click the button below to capture using your device camera.";
+    } else {
+      document.getElementById('camVideo').classList.remove('hidden');
+      document.getElementById('camActionsLive').classList.remove('hidden');
+      document.getElementById('camStep').textContent = "Position your face in frame, then capture.";
+    }
   });
 
   document.getElementById('camConfirm').addEventListener('click', function(){
@@ -789,7 +865,7 @@
       call(action, { token: state.token, payload: payload }).then(function(res){
         closeCamera();
         if (!res.success){
-          toast(res.message, 'error');
+          toast(res.message || 'Clock action was rejected by the server.', 'error');
           return;
         }
         if (state.pendingAction === 'in'){
@@ -808,9 +884,9 @@
         }
         refreshToday();
         refreshHistory();
-      }).catch(function(){
+      }).catch(function(err){
         closeCamera();
-        toast('Could not reach the server. Please try again.', 'error');
+        toast(err && err.message ? err.message : 'Could not reach the server. Please try again.', 'error');
       });
     }, function(){
       document.getElementById('camStatus').classList.add('hidden');
@@ -821,43 +897,64 @@
 
   // ============================== ADMIN DASHBOARD ==============================
   function loadAdminData(){
+    const tbody = document.getElementById('admTableBody');
+    tbody.innerHTML = '<tr><td colspan="11" class="empty-state">Loading attendance records…</td></tr>';
+
     const filters = {
       startDate: document.getElementById('fltStart').value,
       endDate: document.getElementById('fltEnd').value,
       employeeId: document.getElementById('fltEmployee').value
     };
+
     call('getAdminDashboardData', { token: state.token, filters: filters }).then(function(data){
       document.getElementById('admLate').textContent = data.totals.lateCount;
+      document.getElementById('admAbsent').textContent = data.totals.absentCount || 0;
       document.getElementById('admFlags').textContent = data.totals.flaggedCount;
-      document.getElementById('admPenalty').textContent = '₦' + data.totals.totalPenalty.toLocaleString();
-      document.getElementById('admReward').textContent = '₦' + data.totals.totalReward.toLocaleString();
+      document.getElementById('admPenalty').textContent = '₦' + Number(data.totals.totalPenalty || 0).toLocaleString();
+      document.getElementById('admReward').textContent = '₦' + Number(data.totals.totalReward || 0).toLocaleString();
 
       const empSelect = document.getElementById('fltEmployee');
       if (empSelect.options.length <= 1){
         data.employees.forEach(function(e){
           const opt = document.createElement('option');
-          opt.value = e.employeeId; opt.textContent = e.name;
+          opt.value = e.employeeId;
+          opt.textContent = e.name + ' (' + e.employeeId + ')';
           empSelect.appendChild(opt);
         });
       }
 
-      const tbody = document.getElementById('admTableBody');
       tbody.innerHTML = data.records.length === 0
-        ? '<tr><td colspan="11" class="empty-state">No records match these filters.</td></tr>'
+        ? '<tr><td colspan="11" class="empty-state">No attendance records match these filters.</td></tr>'
         : data.records.map(function(r){
-          const statusBadge = r.LateStatus === 'Late' ? '<span class="badge late">Late</span>' : '<span class="badge ontime">' + r.LateStatus + '</span>';
-          const geoBadge = (r.WithinGeofence === false || r.WithinGeofence === 'FALSE')
-            ? '<span class="badge penalty">' + r.DistanceMeters + 'm away</span>'
-            : '<span class="badge ontime">Verified</span>';
+          const isAbsent = r.LateStatus === 'Absent';
+
+          const statusBadge = isAbsent
+            ? '<span class="badge penalty">Absent</span>'
+            : (r.LateStatus === 'Late'
+                ? '<span class="badge late">Late</span>'
+                : '<span class="badge ontime">' + (r.LateStatus || 'Recorded') + '</span>');
+
+          const geoBadge = isAbsent
+            ? '—'
+            : ((r.WithinGeofence === false || r.WithinGeofence === 'FALSE')
+                ? '<span class="badge penalty">' + (r.DistanceMeters || '—') + 'm away</span>'
+                : '<span class="badge ontime">Verified</span>');
+
           const overrideBtn = (r.WithinGeofence === false || r.WithinGeofence === 'FALSE') && !r.AdminOverride
-            ? '<button class="btn-small" onclick="RP.approve(\'' + r.RecordID + '\')">Approve</button>' : '';
+            ? '<button class="btn-small" onclick="RP.approve(\'' + r.RecordID + '\')">Approve</button>'
+            : '';
+
           return '<tr>' +
-            '<td><img class="thumb" src="' + r.ClockInPhotoURL + '" onerror="this.style.visibility=\'hidden\'"/></td>' +
-            '<td>' + r.EmployeeName + '</td><td>' + r.Date + '</td><td>' + r.DayType + '</td>' +
-            '<td>' + r.ClockInTime + '</td><td>' + (r.ClockOutTime || '—') + '</td>' +
+            '<td>' + (r.ClockInPhotoURL
+              ? '<img class="thumb" src="' + r.ClockInPhotoURL + '" onerror="this.style.visibility=\'hidden\'"/>'
+              : '—') + '</td>' +
+            '<td>' + r.EmployeeName + '<br><small>' + r.EmployeeID + '</small></td>' +
+            '<td>' + r.Date + '</td><td>' + r.DayType + '</td>' +
+            '<td>' + (r.ClockInTime || '—') + '</td>' +
+            '<td>' + (r.ClockOutTime || '—') + '</td>' +
             '<td>' + statusBadge + '</td><td>' + geoBadge + '</td>' +
-            '<td>' + (r.PenaltyAmount > 0 ? '−₦' + Number(r.PenaltyAmount).toLocaleString() : '—') + '</td>' +
-            '<td>' + (r.RewardAmount > 0 ? '+₦' + Number(r.RewardAmount).toLocaleString() : '—') + '</td>' +
+            '<td>' + (Number(r.PenaltyAmount) > 0 ? '−₦' + Number(r.PenaltyAmount).toLocaleString() : '—') + '</td>' +
+            '<td>' + (Number(r.RewardAmount) > 0 ? '+₦' + Number(r.RewardAmount).toLocaleString() : '—') + '</td>' +
             '<td>' + overrideBtn + '</td></tr>';
         }).join('');
 
@@ -883,23 +980,77 @@
           (isEnforced ? 'Make advisory' : 'Enforce') + '</button>' +
           '</td></tr>';
       }).join('');
+    }).catch(function(err){
+      tbody.innerHTML = '<tr><td colspan="11" class="empty-state">Unable to load attendance records.</td></tr>';
+      toast(err && err.message ? err.message : 'Unable to load admin attendance data.', 'error');
     });
   }
 
   document.getElementById('fltApply').addEventListener('click', loadAdminData);
 
+  function updateExportButtonLabel(){
+    const employeeId = document.getElementById('fltEmployee').value;
+    const btn = document.getElementById('exportBtn');
+    btn.textContent = employeeId ? 'Export CSV' : 'Export Excel';
+    btn.title = employeeId
+      ? 'Export the selected employee attendance as CSV'
+      : 'Export all employees into one Excel workbook with a separate sheet for each employee';
+  }
+
+  document.getElementById('fltEmployee').addEventListener('change', updateExportButtonLabel);
+  updateExportButtonLabel();
+
   document.getElementById('exportBtn').addEventListener('click', function(){
-    call('exportAttendanceCSV', {
+    const employeeId = document.getElementById('fltEmployee').value;
+    const startDate = document.getElementById('fltStart').value;
+    const endDate = document.getElementById('fltEnd').value;
+    const btn = document.getElementById('exportBtn');
+
+    btn.disabled = true;
+    btn.textContent = employeeId ? 'Preparing CSV…' : 'Preparing Excel…';
+
+    const action = employeeId ? 'exportAttendanceCSV' : 'exportAttendanceWorkbook';
+
+    call(action, {
       token: state.token,
-      startDate: document.getElementById('fltStart').value,
-      endDate: document.getElementById('fltEnd').value
-    }).then(function(csv){
-      const blob = new Blob([csv], {type:'text/csv'});
+      startDate: startDate,
+      endDate: endDate,
+      employeeId: employeeId
+    }).then(function(result){
+      if (!result || !result.success) {
+        throw new Error('The attendance export could not be generated.');
+      }
+
+      let blob, fileName;
+
+      if (result.type === 'xlsx') {
+        const bin = atob(result.base64);
+        const bytes = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+        blob = new Blob([bytes], {
+          type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        });
+        fileName = result.fileName || 'retailpoint_attendance.xlsx';
+        toast('Excel report ready: ' + result.employeeCount + ' employee sheet(s).', 'success');
+      } else {
+        blob = new Blob([result.content], { type: 'text/csv;charset=utf-8' });
+        fileName = result.fileName || 'retailpoint_attendance.csv';
+        toast('CSV exported: ' + (result.recordCount || 0) + ' record(s).', 'success');
+      }
+
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
-      a.href = url; a.download = 'retailpoint_attendance.csv';
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
       a.click();
-      URL.revokeObjectURL(url);
+      a.remove();
+      setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
+    }).catch(function(err){
+      toast(err && err.message ? err.message : 'Unable to export attendance.', 'error');
+    }).finally(function(){
+      btn.disabled = false;
+      updateExportButtonLabel();
     });
   });
 
@@ -963,17 +1114,12 @@
   };
 
   // ============================== PWA / TWA SUPPORT ==============================
-  // Registers the service worker so this site qualifies as an installable PWA
-  // for PWABuilder / Trusted Web Activity packaging into an Android app.
+  // Relative path: required on a GitHub Pages project URL.
   if ('serviceWorker' in navigator){
     window.addEventListener('load', function(){
-      // Relative path — see the note above the <link rel="manifest"> tag
-      // in <head> for why this can't be "/service-worker.js" on a GitHub
-      // Pages project URL.
-      navigator.serviceWorker.register('service-worker.js').catch(function(){
-        // Non-fatal if this fails (e.g. unsupported host) — the web app
-        // itself still works fine without it.
-      });
+      navigator.serviceWorker.register('service-worker.js').then(function(reg){
+        reg.update(); // check for a newer service worker on every page load
+      }).catch(function(){ /* non-fatal */ });
     });
   }
 })();
